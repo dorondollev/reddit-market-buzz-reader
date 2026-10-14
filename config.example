@@ -1,0 +1,17 @@
+# Example only. Do not put real credentials in this file.
+#
+# Copy the variable names below into your own shell environment or a
+# local, untracked .env file. Never commit real values.
+
+# Reddit OAuth2 app credentials (client_credentials grant - no Reddit
+# user login/password is used or required by this connector).
+REDDIT_CLIENT_ID=REPLACE_WITH_YOUR_CLIENT_ID
+REDDIT_CLIENT_SECRET=REPLACE_WITH_YOUR_CLIENT_SECRET
+
+# Required by Reddit: a descriptive User-Agent identifying this app.
+# Example convention: "platform:app-id:version (by /u/your-username)"
+REDDIT_USER_AGENT=REPLACE_WITH_DESCRIPTIVE_USER_AGENT
+
+# Optional. Set to 1 to also fetch public comments per post.
+# Disabled by default.
+REDDIT_INCLUDE_COMMENTS=0

@@ -1,0 +1,13 @@
+# Secrets and local credentials - never commit real values
+.env
+.env.*
+secrets.env
+*.key
+*.pem
+config.local
+config.local.*
+
+# Temporary/local output from running the connector
+*.jsonl
+output/
+*.log
