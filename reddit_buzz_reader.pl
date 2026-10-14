@@ -6,12 +6,15 @@
 # unprivileged, app-only access - no Reddit user login is required or
 # used), then fetches the newest public posts from a small, fixed list
 # of finance-related subreddits and emits a minimal, structured JSONL
-# record per post. Performs GET requests only - no posting, voting,
-# messaging, or moderation action of any kind.
+# record per post.
+#
+# Reddit content retrieval uses GET requests only. OAuth token
+# acquisition uses POST (as required by Reddit's token endpoint), but
+# this is not a write action against Reddit content or users - no
+# posting, voting, messaging, or moderation action is ever performed.
 #
 # Credentials are read from environment variables only. See
-# config.example for the required variable names. Nothing in this
-# script performs any write action against Reddit.
+# config.example for the required variable names.
 
 use strict;
 use warnings;
@@ -36,11 +39,6 @@ my $client_secret = $ENV{REDDIT_CLIENT_SECRET}
 my $user_agent     = $ENV{REDDIT_USER_AGENT}
     or die "Missing required environment variable: REDDIT_USER_AGENT "
           . "(Reddit requires a descriptive User-Agent identifying the app)\n";
-
-# Optional, off by default: fetching public comments for each post.
-# Disabled unless explicitly requested - the core post-reading path
-# never depends on this.
-my $include_comments = $ENV{REDDIT_INCLUDE_COMMENTS} ? 1 : 0;
 
 my $http = HTTP::Tiny->new(
     agent   => $user_agent,
@@ -136,7 +134,14 @@ sub fetch_subreddit_new
                 }
             );
 
-            last if $response->{success};
+            if ($response->{success})
+            {
+                # Inspect rate-limit headers even on success, so a
+                # nearly-exhausted window is throttled proactively
+                # before the *next* request, not only after a 429.
+                respect_rate_limit($response);
+                last;
+            }
 
             if ($attempts < 3 && respect_rate_limit($response))
             {
@@ -177,50 +182,6 @@ sub extract_cashtags
     return sort keys %seen;
 }
 
-sub fetch_comments_for_post
-{
-    # Optional, disabled by default (REDDIT_INCLUDE_COMMENTS). Reads
-    # public comments for a single post. Same read-only, no-write
-    # contract as post fetching.
-    my ($token, $subreddit, $post_id) = @_;
-
-    my $url = "$API_BASE/r/$subreddit/comments/$post_id.json?limit=50";
-
-    my $response = $http->get(
-        $url,
-        {
-            headers => {
-                "Authorization" => "bearer $token",
-                "User-Agent"    => $user_agent,
-            },
-        }
-    );
-
-    return [] if !$response->{success};
-
-    my $data = decode_json($response->{content});
-    my $comment_listing = $data->[1]{data}{children} // [];
-
-    my @comments;
-
-    for my $child (@$comment_listing)
-    {
-        next if ($child->{kind} // '') ne 't1';
-
-        my $c = $child->{data};
-        my $body = $c->{body} // '';
-
-        push @comments, {
-            comment_id => $c->{id},
-            created_utc => $c->{created_utc},
-            score      => $c->{score},
-            cashtags   => [ extract_cashtags($body) ],
-        };
-    }
-
-    return \@comments;
-}
-
 # --- main ---
 
 my $token_info = get_access_token();
@@ -256,11 +217,6 @@ for my $subreddit (@SUBREDDITS)
             cashtags      => \@cashtags,
             permalink     => "https://www.reddit.com" . ($post->{permalink} // ''),
         );
-
-        if ($include_comments)
-        {
-            $record{comments} = fetch_comments_for_post($token, $subreddit, $post->{id});
-        }
 
         print encode_json_line(\%record), "\n";
     }

@@ -8,10 +8,9 @@
 REDDIT_CLIENT_ID=REPLACE_WITH_YOUR_CLIENT_ID
 REDDIT_CLIENT_SECRET=REPLACE_WITH_YOUR_CLIENT_SECRET
 
-# Required by Reddit: a descriptive User-Agent identifying this app.
-# Example convention: "platform:app-id:version (by /u/your-username)"
-REDDIT_USER_AGENT=REPLACE_WITH_DESCRIPTIVE_USER_AGENT
-
-# Optional. Set to 1 to also fetch public comments per post.
-# Disabled by default.
-REDDIT_INCLUDE_COMMENTS=0
+# Required by Reddit: a User-Agent string that is both descriptive
+# (identifies what the app is) and unique (not a generic/default HTTP
+# client string - Reddit rate-limits or blocks those more
+# aggressively). Conventional format: "platform:app-id:version (by
+# /u/your-reddit-username)". Example only, not a real value:
+REDDIT_USER_AGENT=REPLACE_WITH_DESCRIPTIVE_UNIQUE_USER_AGENT

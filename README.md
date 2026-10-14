@@ -4,11 +4,23 @@ This repository contains the public Reddit API access component used by a privat
 
 It is a small, standalone, read-only connector. It does not contain, and is not, the application that consumes its output.
 
+## Architecture
+
+```
+Reddit
+  -> this public, read-only connector
+  -> minimal structured per-post records (JSONL)
+  -> a separate private, personal application
+  -> derived, aggregate market-discussion statistics
+```
+
+This repository is only the first step in that chain. It does not compute aggregate statistics itself - it emits one minimal record per post, and a separate private application (not part of this repository) is responsible for aggregating those records over time.
+
 ## What this is
 
 - **Personal use.** Built and operated by a single individual for personal, non-commercial research.
 - **Non-commercial.** No product, no service, no monetization, no resale of Reddit data.
-- **Read-only.** This connector only performs `GET` requests against the Reddit Data API. It never posts, votes, sends messages, or takes any moderation action.
+- **Read-only.** Reddit content retrieval uses `GET` requests only. OAuth token acquisition uses `POST` (as required by Reddit's own token endpoint), but this is not a write action against Reddit content or users - this connector never posts, votes, sends messages, or takes any moderation action.
 - **Scope: a small, fixed list of public finance-related subreddits.** Currently:
   - `r/stocks`
   - `r/investing`
@@ -23,11 +35,11 @@ It is a small, standalone, read-only connector. It does not contain, and is not,
 - No resale or redistribution of Reddit data.
 - No use of Reddit content to train any AI/LLM model.
 - No production credentials are committed to this repository. Credentials are supplied only through environment variables at runtime (see `config.example`).
-- Raw Reddit post/comment text is read only in memory, to extract explicit stock-ticker mentions (e.g. `$AAPL`), and is not intended for long-term storage. The intended output is derived, aggregate market-discussion statistics (e.g. post counts, mention counts, engagement figures) — not a store of raw Reddit content.
+- Raw Reddit post text is read only in memory, to extract explicit stock-ticker mentions (e.g. `$AAPL`), and is then discarded - it is not part of this connector's output and is not retained.
 
-## What it is used for
+## What it outputs, and what it is used for
 
-Aggregate, derived statistics produced by this connector (e.g. mention counts and engagement metrics per stock ticker) are consumed by a separate, private, personal research application. That application's code is not part of this repository and is not public.
+This connector's own output is a minimal, structured, per-post record (see "Output" below) - not an aggregate statistic. A separate, private, personal application (not part of this repository, and not public) reads that per-post output over time and computes the actual aggregate, derived market-discussion statistics (e.g. mention counts and engagement trends per stock ticker). That application's code is not part of this repository.
 
 ## Running it
 
@@ -37,7 +49,21 @@ Requires Perl 5.x with the core modules `HTTP::Tiny`, `JSON::PP`, and `MIME::Bas
 REDDIT_CLIENT_ID=... REDDIT_CLIENT_SECRET=... REDDIT_USER_AGENT="..." perl reddit_buzz_reader.pl
 ```
 
-See `config.example` for the full list of environment variables and their purpose. Output is one JSON object per line (JSONL) on stdout.
+See `config.example` for the full list of environment variables and their purpose.
+
+## Output
+
+One JSON object per line (JSONL) on stdout, one record per post. Each record contains only:
+
+- `subreddit`
+- `post_id`
+- `created_utc`
+- `score`
+- `num_comments`
+- `cashtags` (explicit `$TICKER`-style mentions found in the post's title/body; the underlying raw text itself is not included)
+- `permalink`
+
+No raw title, no post body, no author/username, and no other user identifiers are included in the output.
 
 ## License
 
